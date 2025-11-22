@@ -1,0 +1,133 @@
+import React, { useState } from "react";
+import { ethers } from "ethers";
+import AssetTokenJSON from "./abis/AssetToken.json";
+import AssetCustodyJSON from "./abis/AssetCustody.json";
+
+/*
+  IMPORTANT: replace these with the real addresses printed when you deployed
+  Example:
+  const TOKEN_ADDR = "0xA1b2C3D4E5F6...";
+  const CUSTODY_ADDR = "0x9AbCdEf12345...";
+*/
+const TOKEN_ADDR = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const CUSTODY_ADDR = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+
+export default function App() {
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [txStatus, setTxStatus] = useState("");
+
+  // Connect wallet (MetaMask)
+  async function connect() {
+    try {
+      if (!window.ethereum) return alert("Install MetaMask");
+      // ethers v6 BrowserProvider
+      const p = new ethers.BrowserProvider(window.ethereum);
+      await p.send("eth_requestAccounts", []);
+      setProvider(p);
+      const s = await p.getSigner();
+      setSigner(s);
+      setTxStatus("Wallet connected: " + (await s.getAddress()));
+    } catch (err) {
+      setTxStatus("❌ Connect error: " + err.message);
+    }
+  }
+
+  // Transfer tokens with validation + trimming + proper ABI usage
+  async function transferTokens(toRaw, amountRaw) {
+    try {
+      setTxStatus("");
+
+      if (!signer) {
+        return setTxStatus("❌ Connect your wallet first.");
+      }
+
+      // sanitize inputs
+      const to = String(toRaw || "").trim();
+      const amountStr = String(amountRaw || "").trim();
+      if (!to || !amountStr) {
+        return setTxStatus("❌ Please enter receiver address and amount.");
+      }
+
+      // validate address
+      if (!ethers.isAddress(to)) {
+        return setTxStatus("❌ Invalid Ethereum address.");
+      }
+
+      // parse amount (no decimals handling here besides token decimals assumption 18)
+      let amount;
+      try {
+        amount = ethers.parseUnits(amountStr, 18);
+      } catch (e) {
+        return setTxStatus("❌ Invalid amount: " + e.message);
+      }
+
+      setTxStatus("Processing transaction...");
+
+      // Use ABI property from compiled JSON for ethers v6
+      const token = new ethers.Contract(TOKEN_ADDR, AssetTokenJSON.abi, signer);
+
+      // send transfer
+      const tx = await token.transfer(to, amount);
+
+      setTxStatus("Waiting for blockchain confirmation...");
+      await tx.wait();
+
+      setTxStatus(
+        `✅ Success! Sent ${amountStr} tokens to ${to}\nTransaction Hash: ${tx.hash}`
+      );
+    } catch (err) {
+      // err might be an object, stringify message
+      const message = err?.data?.message || err?.message || String(err);
+      setTxStatus("❌ Error: " + message);
+    }
+  }
+
+  return (
+    <div style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
+      <h2>ERC20 Asset Transfer — Frontend</h2>
+
+      <button onClick={connect}>Connect Wallet</button>
+
+      <div style={{ marginTop: 20 }}>
+        <h3>Transfer Tokens</h3>
+        <div style={{ marginBottom: 8 }}>
+          <input
+            id="to"
+            placeholder="Receiver address"
+            style={{ width: "60%", padding: 8, marginRight: 8 }}
+          />
+          <input
+            id="amt"
+            placeholder="Amount"
+            style={{ width: "20%", padding: 8, marginRight: 8 }}
+          />
+          <button
+            onClick={() =>
+              transferTokens(
+                document.getElementById("to").value,
+                document.getElementById("amt").value
+              )
+            }
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
+      {txStatus && (
+        <div
+          style={{
+            marginTop: 20,
+            padding: 12,
+            border: "1px solid #ccc",
+            borderRadius: 8,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {txStatus}
+        </div>
+      )}
+    </div>
+  );
+}
