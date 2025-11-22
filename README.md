@@ -15,7 +15,7 @@ This project demonstrates how real-world assets (property, shares, items) can be
 * Hardhat local blockchain powered by EVM
 * Detailed testing setup
 
-### 🖥️ Frontend (React + Ethers.js v6)
+###  Frontend (React + Ethers.js v6)
 
 * Neon/Glassmorphism UI
 * Connect MetaMask wallet
@@ -97,7 +97,7 @@ This runs a local network on:
 * Chain ID: **31337**
 * 20 accounts with private keys
 ---
-### 3️⃣ Deploy Smart Contracts
+###  Deploy Smart Contracts
 Open a **new terminal** (leave node running):
 ```sh
 npx hardhat run scripts/deploy.js --network localhost
